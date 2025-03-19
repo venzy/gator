@@ -1,14 +1,22 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/venzy/gator/internal/config"
+	"github.com/venzy/gator/internal/database"
+
+	_ "github.com/lib/pq"
 )
 
 type state struct {
+	db *database.Queries
 	cfg *config.Config
 }
 
@@ -35,9 +43,10 @@ func main() {
 	}
 
 	// Setup for CLI operation
-	appState := state{&cfg}
+	appState := state{db: nil, cfg: &cfg}
 	cliCommands := NewCommands()
 	cliCommands.register("login", handlerLogin)
+	cliCommands.register("register", handlerRegister)
 
 	// Get command line args
 	if len(os.Args) < 2 {
@@ -45,6 +54,15 @@ func main() {
 	}
 
 	cmd := command{os.Args[1], os.Args[2:]}
+
+	// Open DB connection
+	db, err := sql.Open("postgres", cfg.DbUrl)
+	if err != nil {
+		log.Fatalf("Cannot connect to database: %s", err)
+	}
+
+	dbQueries := database.New(db)
+	appState.db = dbQueries
 
 	// Run command
 	if err := cliCommands.run(&appState, cmd); err != nil {
@@ -73,11 +91,44 @@ func handlerLogin(s *state, cmd command) error {
 		return fmt.Errorf("login requires a single argument, the username")
 	}
 
-	if err := s.cfg.SetUser(cmd.args[0]); err != nil {
+	username := cmd.args[0]
+	_, err := s.db.GetUser(context.Background(), username)
+	if err != nil {
+		return fmt.Errorf("Could not login user '%s'", username)
+	}
+
+	if err := s.cfg.SetUser(username); err != nil {
 		return err
 	}
 
-	fmt.Printf("Logged in as %s\n", cmd.args[0])
+	fmt.Printf("Logged in as %s\n", username)
+
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("register requires a single argument, the username")
+	}
+
+	username := cmd.args[0]
+	user, err := s.db.GetUser(context.Background(), username)
+	if err == nil && user.Name == username {
+		return fmt.Errorf("User '%s' already exists!", username)
+	}
+
+	now := time.Now()
+	user, err = s.db.CreateUser(context.Background(), database.CreateUserParams{ID: uuid.New(), CreatedAt: now, UpdatedAt: now, Name: username})
+	if err != nil {
+		return err
+	}
+
+	err = s.cfg.SetUser(user.Name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Registered new user: %v\n", user)
 
 	return nil
 }
