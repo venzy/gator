@@ -47,6 +47,7 @@ func main() {
 	cliCommands := NewCommands()
 	cliCommands.register("login", handlerLogin)
 	cliCommands.register("register", handlerRegister)
+	cliCommands.register("reset", handlerReset)
 
 	// Get command line args
 	if len(os.Args) < 2 {
@@ -130,5 +131,14 @@ func handlerRegister(s *state, cmd command) error {
 
 	fmt.Printf("Registered new user: %v\n", user)
 
+	return nil
+}
+
+func handlerReset(s *state, _ command) error {
+	err := s.db.ResetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	fmt.Println("Successfully reset users table")
 	return nil
 }
