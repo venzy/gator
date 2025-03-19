@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"fmt"
+	"html"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/venzy/gator/internal/config"
 	"github.com/venzy/gator/internal/database"
+	"github.com/venzy/gator/internal/feed"
 
 	_ "github.com/lib/pq"
 )
@@ -49,6 +54,7 @@ func main() {
 	cliCommands.register("register", handlerRegister)
 	cliCommands.register("reset", handlerReset)
 	cliCommands.register("users", handlerUsers)
+	cliCommands.register("agg", handlerAgg)
 
 	// Get command line args
 	if len(os.Args) < 2 {
@@ -159,4 +165,51 @@ func handlerUsers(s *state, _ command) error {
 	}
 
 	return nil
+}
+
+func handlerAgg(s *state, _ command) error {
+	url := "https://www.wagslane.dev/index.xml"
+	feed, err := fetchFeed(context.Background(), url)
+	if err != nil {
+		return fmt.Errorf("Problem fetching feed: %s", err)
+	}
+	fmt.Printf("%v", feed)
+	return nil
+}
+
+func fetchFeed(ctx context.Context, feedURL string) (*feed.RSSFeed, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating request: %s", err)
+	}
+	req.Header.Set("User-Agent", "gator")
+
+	client := &http.Client{}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Error making request: %s", err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading response body: %s", err)
+	}
+
+	var rssFeed feed.RSSFeed
+	err = xml.Unmarshal(body, &rssFeed)
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing XML: %s", err)
+	}
+
+	// Unescape various strings
+	rssFeed.Channel.Title = html.UnescapeString(rssFeed.Channel.Title)
+	rssFeed.Channel.Description = html.UnescapeString(rssFeed.Channel.Description)
+	for idx, item := range rssFeed.Channel.Item {
+		rssFeed.Channel.Item[idx].Title = html.UnescapeString(item.Title)
+		rssFeed.Channel.Item[idx].Description = html.UnescapeString(item.Description)
+	}
+
+	return &rssFeed, nil
 }
