@@ -55,6 +55,7 @@ func main() {
 	cliCommands.register("reset", handlerReset)
 	cliCommands.register("users", handlerUsers)
 	cliCommands.register("agg", handlerAgg)
+	cliCommands.register("addfeed", handlerAddFeed)
 
 	// Get command line args
 	if len(os.Args) < 2 {
@@ -212,4 +213,37 @@ func fetchFeed(ctx context.Context, feedURL string) (*feed.RSSFeed, error) {
 	}
 
 	return &rssFeed, nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) != 2 {
+		return fmt.Errorf("addfeed requires two arguments, the feed name and URL")
+	}
+
+	feedname := cmd.args[0]
+	feedURL := cmd.args[1]
+
+	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Current user '%s' not in database!", s.cfg.CurrentUserName)
+	}
+
+	now := time.Now()
+	newFeed, err := s.db.CreateFeed(
+		context.Background(),
+		database.CreateFeedParams{
+			ID: uuid.New(),
+			CreatedAt: now,
+			UpdatedAt: now,
+			Name: feedname,
+			Url: feedURL,
+			UserID: user.ID,
+		})
+	if err != nil {
+		return fmt.Errorf("Problem creating feed: %v", err)
+	}
+
+	fmt.Printf("New Feed: %v", newFeed)
+
+	return nil
 }
