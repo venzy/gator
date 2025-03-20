@@ -56,6 +56,7 @@ func main() {
 	cliCommands.register("users", handlerUsers)
 	cliCommands.register("agg", handlerAgg)
 	cliCommands.register("addfeed", handlerAddFeed)
+	cliCommands.register("feeds", handlerFeeds)
 
 	// Get command line args
 	if len(os.Args) < 2 {
@@ -101,7 +102,7 @@ func handlerLogin(s *state, cmd command) error {
 	}
 
 	username := cmd.args[0]
-	_, err := s.db.GetUser(context.Background(), username)
+	_, err := s.db.GetUserByName(context.Background(), username)
 	if err != nil {
 		return fmt.Errorf("Could not login user '%s'", username)
 	}
@@ -121,7 +122,7 @@ func handlerRegister(s *state, cmd command) error {
 	}
 
 	username := cmd.args[0]
-	user, err := s.db.GetUser(context.Background(), username)
+	user, err := s.db.GetUserByName(context.Background(), username)
 	if err == nil && user.Name == username {
 		return fmt.Errorf("User '%s' already exists!", username)
 	}
@@ -223,7 +224,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	feedname := cmd.args[0]
 	feedURL := cmd.args[1]
 
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	user, err := s.db.GetUserByName(context.Background(), s.cfg.CurrentUserName)
 	if err != nil {
 		return fmt.Errorf("Current user '%s' not in database!", s.cfg.CurrentUserName)
 	}
@@ -244,6 +245,24 @@ func handlerAddFeed(s *state, cmd command) error {
 	}
 
 	fmt.Printf("New Feed: %v", newFeed)
+
+	return nil
+}
+
+func handlerFeeds(s *state, _ command) error {
+	feedList, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("Problem fetching all feeds: %v", err)
+	}
+
+	for _, feedData := range feedList {
+		user, err := s.db.GetUserByID(context.Background(), feedData.UserID)
+		if err != nil {
+			return fmt.Errorf("Problem getting user name for userID %s associated with feed %s (%s)", feedData.UserID, feedData.Name, feedData.Url)
+		}
+
+		fmt.Printf("%s %s %s\n", feedData.Name, feedData.Url, user.Name)
+	}
 
 	return nil
 }
