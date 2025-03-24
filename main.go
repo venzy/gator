@@ -31,10 +31,10 @@ func main() {
 	cliCommands.register("reset", handlerReset)
 	cliCommands.register("users", handlerUsers)
 	cliCommands.register("agg", handlerAgg)
-	cliCommands.register("addfeed", handlerAddFeed)
+	cliCommands.register("addfeed", withLoggedInUser(handlerAddFeed))
 	cliCommands.register("feeds", handlerFeeds)
-	cliCommands.register("follow", handlerFollow)
-	cliCommands.register("following", handlerFollowing)
+	cliCommands.register("follow", withLoggedInUser(handlerFollow))
+	cliCommands.register("following", withLoggedInUser(handlerFollowing))
 
 	// Get command line args
 	if len(os.Args) < 2 {

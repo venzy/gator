@@ -8,18 +8,12 @@ import (
 	"time"
 )
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 1 {
 		return fmt.Errorf("follow requires one argument, the feed URL")
 	}
 
 	feedURL := cmd.args[0]
-
-	// Get logged in user ID
-	user, err := s.db.GetUserByName(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("Current user '%s' not in database!", s.cfg.CurrentUserName)
-	}
 
 	// Get feed ID from URL
 	feed, err := s.db.GetFeedByURL(context.Background(), feedURL)
@@ -47,13 +41,7 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, _ command) error {
-	// Get user ID
-	user, err := s.db.GetUserByName(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("User '%s' not in database!", s.cfg.CurrentUserName)
-	}
-
+func handlerFollowing(s *state, _ command, user database.User) error {
 	// Get follows
 	follows, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {

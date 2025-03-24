@@ -18,18 +18,13 @@ func handlerAgg(s *state, _ command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 2 {
 		return fmt.Errorf("addfeed requires two arguments, the feed name and URL")
 	}
 
 	feedname := cmd.args[0]
 	feedURL := cmd.args[1]
-
-	user, err := s.db.GetUserByName(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("Current user '%s' not in database!", s.cfg.CurrentUserName)
-	}
 
 	now := time.Now()
 	newFeed, err := s.db.CreateFeed(

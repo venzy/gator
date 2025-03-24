@@ -87,3 +87,15 @@ func handlerUsers(s *state, _ command) error {
 
 	return nil
 }
+
+// 'middleware' as boot.dev likes to call it
+func withLoggedInUser(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		user, err := s.db.GetUserByName(context.Background(), s.cfg.CurrentUserName)
+		if err != nil {
+			return fmt.Errorf("User '%s' not in database!", s.cfg.CurrentUserName)
+		}
+
+		return handler(s, cmd, user)
+	}
+}
