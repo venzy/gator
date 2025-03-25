@@ -8,14 +8,22 @@ import (
 	"time"
 )
 
-func handlerAgg(s *state, _ command) error {
-	url := "https://www.wagslane.dev/index.xml"
-	feed, err := fetchFeed(context.Background(), url)
-	if err != nil {
-		return fmt.Errorf("Problem fetching feed: %s", err)
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("agg requires one argument, the time between requests - a duration string like 1s, 1m , 1h5m3s etc")
 	}
-	fmt.Printf("%v", feed)
-	return nil
+
+	timeBetweenReqs, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("Invalid time-between-requests argument (duration) '%s' - %s\n", cmd.args[0], err)
+	}
+
+	fmt.Printf("Collecting feeds every %s\n", timeBetweenReqs)
+
+	ticker := time.NewTicker(timeBetweenReqs)
+	for ; ; <-ticker.C {
+		scapeFeeds(s)
+	}
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {

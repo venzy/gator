@@ -7,6 +7,8 @@ import (
 	"html"
 	"io"
 	"net/http"
+
+	"github.com/venzy/gator/internal/database"
 )
 
 type RSSFeed struct {
@@ -62,3 +64,28 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &rssFeed, nil
 }
 
+func scapeFeeds(s *state) error {
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return err
+	}
+
+	// Not sure why we mark it fetched before fetch success
+	err = s.db.MarkFeedFetched(
+		context.Background(),
+		database.MarkFeedFetchedParams{
+			ID: feed.ID,
+		})
+	
+	rssFeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Fetched items for feed '%s':\n", rssFeed.Channel.Title)
+	for _, item := range rssFeed.Channel.Item {
+		fmt.Printf("\t'%s'\n", item.Title)
+	}
+
+	return nil
+}
