@@ -36,6 +36,7 @@ func main() {
 	cliCommands.register("follow", withLoggedInUser(handlerFollow))
 	cliCommands.register("following", withLoggedInUser(handlerFollowing))
 	cliCommands.register("unfollow", withLoggedInUser(handlerUnfollow))
+	cliCommands.register("browse", withLoggedInUser(handlerBrowse))
 
 	// Get command line args
 	if len(os.Args) < 2 {
